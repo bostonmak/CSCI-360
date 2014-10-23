@@ -61,6 +61,11 @@ struct Cell
 		isReachable = false;
 		isReaching = false;
 	}
+
+	void ToString()
+	{
+		printf("(%d, %d)", location->x, location->y);
+	}
 };
 
 struct Grid
@@ -71,10 +76,12 @@ struct Grid
 	vector<Cell*> forcedForwardMoves;
 	vector<Cell*> forcedBackwardMoves;
 	vector<Cell*> solution;
+	int solutionLength;
 	int numRows;
 	int numCols;
 	bool hasSolution;
 	bool isUnique;
+
 
 	Grid(int rows, int cols, int min, int max)
 	{
@@ -89,6 +96,7 @@ struct Grid
 		}
 		// set goal.
 		grid[rows - 1][cols - 1]->val = 0;
+		solutionLength = 0;
 		numRows = rows;
 		numCols = cols;
 	}
@@ -151,70 +159,104 @@ void FindSolution(Grid* g)
 	current->touchDepth = depth;
 	current->isReachable = true;
 	// for int x/y, if cell !touched, pathfind to check for white holes.
-	while (!g->grid[0][0]->connections.empty())
+	for (int y = 0; y < g->numCols; y++)
 	{
-		// If dead end found, backtrack.
-		if (next == NULL)
+		for (int x = 0; x < g->numRows; x++)
 		{
-			cout << "Backing" << endl;
-			--depth;
-			next = current; 
-			current = prev;
-			prev = prev->parent;
-			printf("erasing (%d, %d)\n", next->location->x, next->location->y);
-			current->connections.erase(current->connections.begin());
-			printf("Moved back from (%d, %d) to (%d, %d) \n", next->location->x, next->location->y, current->location->x, current->location->y);
-		}
-		// If shorter path already found, remove the connection.
-		if (next->touched && next->touchDepth <= depth)
-		{
-			cout << "Redirecting" << endl;
-			current->connections.erase(current->connections.begin());
-			if (!current->connections.empty())
+			if (!g->grid[x][y]->touched)
 			{
-				next = current->connections[0];
-			}
-			else
-			{
-				next = NULL;
-			}
-		}
-		else
-		{
-			cout << "Continuing" << endl;
-			++depth;
-			prev = current;
-			current = next;
-			if (!current->connections.empty())
-			{
-				next = current->connections[0];
-			}
-			else
-			{
-				if (!current->touched)
+				while (!g->grid[x][y]->connections.empty())
 				{
-					//Dead end.
-					g->blackHoles.push_back(current);
+					// If dead end found, backtrack.
+					if (next == NULL)
+					{
+						Cell* old = current;
+						// cout << "Backing" << endl;
+						--depth;
+						current = prev;
+						prev = prev->parent;
+						current->connections.erase(current->connections.begin());
+						if (!current->connections.empty())
+						{
+							next = current->connections[0];
+						}
+						else
+						{
+							next = NULL;
+						}
+						if (old->val != 0 && !old->isReaching)
+						{
+							old->isReaching = false;
+						}
+						printf("Moved back from (%d, %d) to (%d, %d) \n", old->location->x, old->location->y, current->location->x, current->location->y);
+					}
+					// If shorter path already found, remove the connection.
+					else if (next->touched && next->touchDepth <= depth)
+					{
+						// cout << "Redirecting" << endl;
+						current->connections.erase(current->connections.begin());
+						if (!current->connections.empty())
+						{
+							next = current->connections[0];
+						}
+						else
+						{
+							next = NULL;
+						}
+					}
+					else
+					{
+						// cout << "Continuing" << endl;
+						++depth;
+						prev = current;
+						current = next;
+						if (!current->connections.empty())
+						{
+							next = current->connections[0];
+						}
+						else
+						{
+							if (!current->touched)
+							{
+								//Dead end.
+								g->blackHoles.push_back(current);
+							}
+							next = NULL;
+						}
+						current->touched = true;
+						current->touchDepth = depth;
+						if (x == 0 && y == 0)
+						{
+							current->isReachable = true;
+						}
+						else if (!current->isReachable)
+						{
+							current->isReachable = false;
+						}
+						current->parent = prev;
+						printf("Moved from (%d, %d) of value %d to (%d, %d) \n", prev->location->x, prev->location->y, prev->val, current->location->x, current->location->y);
+						if (current->val == 0)
+						{
+							printf("Solution of depth %d found \n", depth);
+							Cell* solutionCell = current;
+							while (solutionCell != NULL)
+							{
+								solutionCell->isReaching = true;
+								if (x == 0 && y == 0 && (g->solutionLength > depth || depth == 0))
+								{
+									g->solution.insert(g->solution.begin(), solutionCell);
+								}
+								solutionCell = solutionCell->parent;
+							}
+						}
+					}
 				}
-				next = NULL;
-			}
-			current->touched = true;
-			current->touchDepth = depth;
-			current->isReachable = true;
-			current->parent = prev;
-			printf("Moved from (%d, %d) of value %d to (%d, %d) \n", prev->location->x, prev->location->y, prev->val, current->location->x, current->location->y);
-			if (current->val == 0)
-			{
-				printf("Solution of depth %d found \n", depth);
-				/*Cell* solutionCell = current;
-				while (solutionCell != NULL)
-				{
-					g->solution.insert(g->solution.begin(), solutionCell);
-					solutionCell = solutionCell->parent;
-				}*/
+
+				cout << "dfs done" << endl;
 			}
 		}
 	}
+	
 }
 
 void GeneratePuzzle(int nRows, int nColumns, int minVal, int maxVal)
